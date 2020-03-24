@@ -4,6 +4,10 @@ const User = require('../models/user')
 const auth = require('../middleware/auth')
 const multer = require('multer')
 const sharp = require('sharp')
+const {
+    sendWelcome,
+    sendRemove
+} = require('../emails/account')
 
 // creating user
 router.post('/users', async (req, res) => {
@@ -12,6 +16,7 @@ router.post('/users', async (req, res) => {
 
     try {
         await user.save()
+        sendWelcome(user.email,user.name)
         const token = await user.generateAuthToken()
         res.status(201).send({
             user,
@@ -92,6 +97,7 @@ router.delete('/users/me', auth, async (req, res) => {
     try {
         //remove is a function of mongoose
         await req.user.remove()
+        sendRemove(req.user.email,req.user.name)
         res.send(req.user)
     } catch (error) {
         res.status(500).send()
@@ -112,7 +118,10 @@ const upload = multer({
 })
 
 router.post('/users/me/avatar', auth, upload.single('avatar'), async (req, res) => {
-    const buffer = await sharp(req.file.buffer).resize({width: 250,height:250}).png().toBuffer()
+    const buffer = await sharp(req.file.buffer).resize({
+        width: 250,
+        height: 250
+    }).png().toBuffer()
     req.user.avatar = buffer
     await req.user.save()
     res.send()
@@ -134,13 +143,13 @@ router.delete('/users/me/avatar', auth, async (req, res) => {
 })
 
 // getting avatar by id
-router.get('/users/:id/avatar',async (req,res) => {
+router.get('/users/:id/avatar', async (req, res) => {
     try {
         const user = await User.findById('5e78f321471c775708fbb23c')
         if (!user || !user.avatar) {
             throw new Error()
         }
-        res.set('Content-Type','image/jpg')
+        res.set('Content-Type', 'image/jpg')
         res.send(user.avatar)
     } catch (error) {
         res.status(404).send()
@@ -148,12 +157,12 @@ router.get('/users/:id/avatar',async (req,res) => {
 })
 
 // getting avatar by auth
-router.get('/users/me/avatar',auth,async (req,res) => {
+router.get('/users/me/avatar', auth, async (req, res) => {
     try {
         if (!req.user.avatar) {
             throw new Error()
         }
-        res.set('Content-Type','image/jpg')
+        res.set('Content-Type', 'image/jpg')
         res.send(req.user.avatar)
     } catch (error) {
         res.status(404).send()
